@@ -93,9 +93,21 @@ router.put(
   asyncHandler(async (req, res) => {
     const course = await Course.findByPk(req.params.id);
     if (course) {
-      if (course.userId && req.currentUser.id) {
-        await course.update(req.body);
-        res.status(204).end();
+      if (course.userId === req.currentUser.id) {
+        try {
+          await course.update(req.body);
+          res.status(204).end();
+        } catch(error) {
+          if (
+            error.name === "SequelizeValidationError" ||
+            error.name === "SequelizeUniqueConstraintError"
+          ) {
+            const errors = error.errors.map((err) => err.message);
+            res.status(400).json({ errors });
+          } else {
+            throw error;
+          }
+        }
       } else {
         res
           .status(403)
@@ -119,7 +131,7 @@ router.delete(
     if (course) {
       if (course.userId === req.currentUser.id) {
         await course.destroy();
-        res.status(404).end();
+        res.status(204).end();
       } else {
         res
           .status(403)
